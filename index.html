@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#12302B">
+<title>환율·코인 계산기</title>
+<style>
+:root{
+  --bg:#EAF0ED; --surface:#FFFFFF; --ink:#12302B; --muted:#5E7670; --line:#CFDAD5;
+  --fiat:#1F6F5C; --coin:#C77A12; --accent:var(--fiat); --soft:#DDEBE5;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme]){--bg:#0E1D1A;--surface:#162925;--ink:#E6F1ED;--muted:#8EA8A1;--line:#27403A;--fiat:#4CC2A0;--coin:#F0B24A;--soft:#1D342F}
+}
+:root[data-theme="dark"]{--bg:#0E1D1A;--surface:#162925;--ink:#E6F1ED;--muted:#8EA8A1;--line:#27403A;--fiat:#4CC2A0;--coin:#F0B24A;--soft:#1D342F}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:"Pretendard","Noto Sans KR","Apple SD Gothic Neo",system-ui,sans-serif;
+  padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px);-webkit-tap-highlight-color:transparent}
+.app{max-width:480px;margin:0 auto;padding:20px 16px 32px}
+h1{font-size:20px;font-weight:800;letter-spacing:-.02em}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+#theme{width:40px;height:40px;border-radius:50%;border:1.5px solid var(--line);background:var(--surface);font-size:18px;cursor:pointer}
+.tabs{display:grid;grid-template-columns:1fr 1fr;background:var(--soft);border-radius:14px;padding:4px;margin-bottom:16px}
+.tab{border:0;background:none;color:var(--muted);font:inherit;font-weight:700;font-size:15px;padding:11px;border-radius:11px;cursor:pointer}
+.tab[aria-selected="true"]{background:var(--surface);color:var(--accent);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.panel{background:var(--surface);border-radius:20px;padding:18px;border-top:4px solid var(--accent)}
+.row{display:grid;grid-template-columns:1fr 112px;gap:10px;align-items:end}
+label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+input,select{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1.5px solid transparent;border-radius:12px;padding:13px 12px;outline:none}
+input{font-size:22px;font-weight:700;letter-spacing:-.01em}
+select{font-size:15px;font-weight:600;padding:15px 8px}
+input:focus-visible,select:focus-visible,button:focus-visible{border-color:var(--accent);outline:2px solid var(--accent);outline-offset:1px}
+.swap{display:flex;justify-content:center;margin:10px 0}
+.swap button{width:42px;height:42px;border-radius:50%;border:1.5px solid var(--line);background:var(--surface);color:var(--accent);font-size:18px;cursor:pointer}
+.result{font-size:22px;font-weight:800;padding:13px 12px;background:var(--soft);border-radius:12px;min-height:54px;overflow-wrap:anywhere;line-height:1.3}
+.rate{margin-top:16px;font-size:14px;color:var(--muted);line-height:1.5}
+.rate b{color:var(--ink)}
+.status{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:14px;font-size:12px;color:var(--muted)}
+.status button{border:1.5px solid var(--line);background:none;color:var(--accent);font:inherit;font-weight:700;padding:7px 12px;border-radius:10px;cursor:pointer}
+.quick{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.quick button{border:1.5px solid var(--line);background:none;color:var(--ink);font:inherit;font-size:13px;font-weight:600;padding:7px 12px;border-radius:99px;cursor:pointer}
+.note{margin-top:18px;font-size:11.5px;color:var(--muted);line-height:1.5;text-align:center}
+[hidden]{display:none!important}
+@media (prefers-reduced-motion:no-preference){.tab,.swap button{transition:background .15s,color .15s}}
+</style>
+</head>
+<body>
+<main class="app">
+  <div class="top"><h1>환율·코인 계산기</h1><button id="theme" aria-label="다크 모드로 바꾸기">🌙</button></div>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" id="t-fiat" aria-selected="true" data-mode="fiat">환율</button>
+    <button class="tab" role="tab" id="t-coin" aria-selected="false" data-mode="coin">코인</button>
+  </div>
+
+  <section class="panel" role="tabpanel">
+    <label for="amt">금액</label>
+    <div class="row">
+      <input id="amt" type="text" inputmode="decimal" value="1" autocomplete="off">
+      <select id="from" aria-label="변환할 통화"></select>
+    </div>
+    <div class="swap"><button id="swap" aria-label="통화 바꾸기">⇅</button></div>
+    <label>변환 결과</label>
+    <div class="row">
+      <div class="result" id="out" aria-live="polite">-</div>
+      <select id="to" aria-label="받을 통화"></select>
+    </div>
+    <p class="rate" id="rate"></p>
+    <div class="quick" id="quick"></div>
+    <div class="status"><span id="stat">불러오는 중…</span><button id="refresh">새로고침</button></div>
+  </section>
+  <p class="note">표시되는 환율과 시세는 참고용이며 실제 거래 가격과 다를 수 있습니다.<br>환율: open.er-api.com · 코인 시세: 업비트(KRW 마켓)</p>
+</main>
+
+<script>
+(function(){
+  // ---------- 데이터 ----------
+  var FIAT = {
+    KRW:'🇰🇷 KRW 원', USD:'🇺🇸 USD 달러', JPY:'🇯🇵 JPY 엔', EUR:'🇪🇺 EUR 유로', CNY:'🇨🇳 CNY 위안',
+    GBP:'🇬🇧 GBP 파운드', AUD:'🇦🇺 AUD 호주달러', CAD:'🇨🇦 CAD 캐나다달러', SGD:'🇸🇬 SGD 싱가포르달러',
+    HKD:'🇭🇰 HKD 홍콩달러', TWD:'🇹🇼 TWD 대만달러', THB:'🇹🇭 THB 바트', VND:'🇻🇳 VND 동', PHP:'🇵🇭 PHP 페소'
+  };
+  var COINS = {BTC:'비트코인',ETH:'이더리움',XRP:'리플',SOL:'솔라나',DOGE:'도지코인',ADA:'에이다',USDT:'테더'};
+  // 오프라인/실패 시 보여줄 샘플 값 (USD 기준 환율, 코인은 KRW 가격)
+  var SAMPLE_RATES = {USD:1,KRW:1380,JPY:150,EUR:0.92,CNY:7.2,GBP:0.78,AUD:1.5,CAD:1.36,SGD:1.34,HKD:7.8,TWD:32,THB:35,VND:25000,PHP:57};
+  var SAMPLE_COINS = {BTC:90000000,ETH:4500000,XRP:3500,SOL:250000,DOGE:300,ADA:900,USDT:1380};
+
+  var state = {mode:'fiat', rates:null, coins:null, live:false, time:null};
+  var $ = function(id){return document.getElementById(id)};
+  var amt=$('amt'), from=$('from'), to=$('to'), out=$('out');
+
+  // ---------- 저장/불러오기 ----------
+  function load(k){try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}}
+  function save(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+
+  // ---------- 시세 가져오기 ----------
+  function fetchJSON(url){
+    var c = new AbortController(); var t = setTimeout(function(){c.abort()},8000);
+    return fetch(url,{signal:c.signal}).then(function(r){clearTimeout(t); if(!r.ok) throw 0; return r.json()});
+  }
+  function refresh(){
+    $('stat').textContent = '불러오는 중…';
+    var markets = Object.keys(COINS).map(function(c){return 'KRW-'+c}).join(',');
+    state.fiatOk = false; state.coinOk = false;
+    var pf = fetchJSON('https://open.er-api.com/v6/latest/USD').then(function(d){
+      if(!d || !d.rates) throw 0;
+      state.rates = d.rates; state.fiatOk = true;
+    }).catch(function(){});
+    var pc = fetchJSON('https://api.upbit.com/v1/ticker?markets='+markets).then(function(d){
+      var coins = {};
+      d.forEach(function(t){coins[t.market.replace('KRW-','')] = t.trade_price});
+      if(!Object.keys(coins).length) throw 0;
+      state.coins = coins; state.coinOk = true;
+    }).catch(function(){});
+    Promise.all([pf,pc]).then(function(){
+      if(state.fiatOk || state.coinOk){
+        state.time = Date.now();
+        save('cache',{rates:state.rates,coins:state.coins,time:state.time});
+      }
+      render();
+    });
+  }
+
+  // ---------- 계산 ----------
+  // 모든 단위를 KRW 가치로 환산한 뒤 변환
+  function krwOf(code){
+    if(COINS[code]) return state.coins[code] || SAMPLE_COINS[code];
+    var r = state.rates;
+    var usdKrw = r.KRW || SAMPLE_RATES.KRW;
+    return usdKrw / (r[code] || SAMPLE_RATES[code]);
+  }
+  function convert(v,a,b){return v * krwOf(a) / krwOf(b)}
+
+  function fmt(n,code){
+    if(!isFinite(n)) return '-';
+    var abs = Math.abs(n), max;
+    if(COINS[code]) max = abs>=1000?2:abs>=1?6:8;
+    else if(code==='KRW'||code==='JPY'||code==='VND') max = 2;
+    else max = 2;
+    if(abs>0 && abs<0.01 && !COINS[code]) max = 6;
+    return new Intl.NumberFormat('ko-KR',{maximumFractionDigits:max}).format(n);
+  }
+  function parse(s){return parseFloat(String(s).replace(/,/g,''))}
+
+  // ---------- 화면 ----------
+  function options(mode){
+    var h='';
+    if(mode==='coin'){
+      h += '<optgroup label="코인">'+Object.keys(COINS).map(function(c){return '<option value="'+c+'">'+c+' '+COINS[c]+'</option>'}).join('')+'</optgroup>';
+    }
+    h += '<optgroup label="통화">'+Object.keys(FIAT).map(function(c){return '<option value="'+c+'">'+FIAT[c]+'</option>'}).join('')+'</optgroup>';
+    return h;
+  }
+  function setMode(mode){
+    state.mode = mode;
+    document.documentElement.style.setProperty('--accent', mode==='coin'?'var(--coin)':'var(--fiat)');
+    ['fiat','coin'].forEach(function(m){$('t-'+m).setAttribute('aria-selected', m===mode)});
+    from.innerHTML = to.innerHTML = options(mode);
+    if(mode==='coin'){from.value='BTC';to.value='KRW';amt.value='1'}
+    else{from.value='USD';to.value='KRW';amt.value='1'}
+    save('mode',mode);
+    renderQuick(); render();
+  }
+  function renderQuick(){
+    var list = state.mode==='coin' ? [0.1,1,10] : [1,100,1000,10000];
+    var q = $('quick'); q.innerHTML='';
+    list.forEach(function(n){
+      var b=document.createElement('button'); b.textContent=new Intl.NumberFormat('ko-KR').format(n);
+      b.onclick=function(){amt.value=String(n);render()}; q.appendChild(b);
+    });
+  }
+  function render(){
+    if(!state.rates) return;
+    var v = parse(amt.value), a = from.value, b = to.value;
+    out.textContent = isNaN(v) ? '-' : fmt(convert(v,a,b),b);
+    $('rate').innerHTML = '1 '+a+' = <b>'+fmt(convert(1,a,b),b)+' '+b+'</b>';
+    var s, t = state.time ? new Date(state.time).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}) : '';
+    if(state.fiatOk && state.coinOk) s = '실시간 · '+t+' 기준';
+    else if(state.fiatOk) s = '환율만 실시간 · 코인 시세 불러오기 실패';
+    else if(state.coinOk) s = '코인만 실시간 · 환율 불러오기 실패';
+    else if(state.time) s = '불러오기 실패 · 마지막 저장값 사용 중';
+    else s = '불러오기 실패 · 샘플 값 표시 중';
+    $('stat').textContent = s;
+  }
+
+  // ---------- 이벤트 ----------
+  amt.addEventListener('input',function(){
+    amt.value = amt.value.replace(/[^0-9.,]/g,''); render();
+  });
+  from.addEventListener('change',render);
+  to.addEventListener('change',render);
+  $('swap').onclick=function(){var t=from.value;from.value=to.value;to.value=t;render()};
+  $('refresh').onclick=refresh;
+  document.querySelectorAll('.tab').forEach(function(t){t.onclick=function(){setMode(t.dataset.mode)}});
+
+  // ---------- 테마 ----------
+  function applyTheme(t){
+    document.documentElement.setAttribute('data-theme',t);
+    $('theme').textContent = t==='dark' ? '☀️' : '🌙';
+    $('theme').setAttribute('aria-label', t==='dark' ? '라이트 모드로 바꾸기' : '다크 모드로 바꾸기');
+    save('theme',t);
+  }
+  $('theme').onclick=function(){
+    applyTheme(document.documentElement.getAttribute('data-theme')==='dark' ? 'light' : 'dark');
+  };
+  applyTheme(load('theme') || (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+
+  // ---------- 시작 ----------
+  var c = load('cache');
+  if(c){state.rates=c.rates;state.coins=c.coins;state.time=c.time}
+  else{state.rates=SAMPLE_RATES;state.coins=SAMPLE_COINS}
+  setMode(load('mode')==='coin'?'coin':'fiat');
+  refresh();
+})();
+</script>
+</body>
+</html>
